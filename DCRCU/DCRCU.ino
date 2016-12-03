@@ -57,7 +57,7 @@ int break_down = 6;
 int break_up = 7;
 int alarm = 10;
 unsigned long previousMillis = 0;       
-const long interval = 5;
+const long interval = 10;
 state st = STOP;
 int startTime = 0;
 int attemp = 0;
@@ -100,20 +100,26 @@ void loop() {
 			digitalWrite(output_up, LOW);
 			analogWrite(PWM_out_up, MainReg.RegState(st));
 			analogWrite(PWM_out_down, MainReg.RegState(st));
-			if (digitalRead(input_down))
+			attemp = 0;
+			if (digitalRead(input_down) && (digitalRead(break_down)))
 			{
 				st = StartRWD;
-				//attempTime = 0;
+				digitalWrite(output_down, HIGH);
+				attemp = 0;
 			}
-			else if (digitalRead(input_up)) {
+			else if (digitalRead(input_up) && (digitalRead(break_up))) {
 				st = StartFWD;
-				//attempTime = 0;
+				digitalWrite(output_up, HIGH);
+				attemp = 0;
 			}
 			break;
 		}
 		case FWD: {
-			if (digitalRead(input_up)==LOW /*|| (digitalRead(break_up))*/) {
-				st = STOP;
+			if (digitalRead(input_up)==LOW || (digitalRead(break_up) == LOW)) {
+				if (digitalRead(break_up) == LOW)
+					st = Breakes;
+				else
+					st = STOP;
 				digitalWrite(output_down, LOW);
 				digitalWrite(output_up, LOW);
 				analogWrite(PWM_out_up, 0);
@@ -123,11 +129,12 @@ void loop() {
 			if (meas_flag == false) {
 				st = StartFWD;
 				attemp++;
+				break;
 			}
 			meas_flag = false;
-			digitalWrite(output_down, LOW);
+			//digitalWrite(output_down, LOW);
 			int temp = MainReg.RegState(st);
-			digitalWrite(output_up, HIGH);
+			//digitalWrite(output_up, HIGH);
 			analogWrite(PWM_out_up, temp);
 			startTime = 0;
 			//Serial.print("PWm ");
@@ -136,8 +143,11 @@ void loop() {
 			break;
 		}
 		case RWD: {
-			if (digitalRead(input_down)==LOW /*|| (digitalRead(break_down))*/) {
-				st = STOP;
+			if (digitalRead(input_down)==LOW || (digitalRead(break_down)==LOW)) {
+				if (digitalRead(break_down) == LOW)
+					st = Breakes;
+				else
+					st = STOP;
 				digitalWrite(output_down, LOW);
 				digitalWrite(output_up, LOW);
 				analogWrite(PWM_out_up, 0);
@@ -147,11 +157,12 @@ void loop() {
 			if (meas_flag == false) {
 				st = StartRWD;
 				attemp++;
+				break;
 			}
 			startTime = 0;
 			meas_flag = false;
-			digitalWrite(output_down, HIGH);
-			digitalWrite(output_up, LOW);
+			//digitalWrite(output_down, HIGH);
+			//digitalWrite(output_up, LOW);
 			int temp = MainReg.RegState(st);
 			analogWrite(PWM_out_down, temp);
 			//Serial.print("PWm ");
@@ -165,17 +176,20 @@ void loop() {
 				  //
 				  ///////////////////////////////////////////
 		case StartFWD:{
-			if (digitalRead(input_up)==LOW/* || (digitalRead(break_up))*/) {
-				st = STOP;
+			if (digitalRead(input_up)==LOW || (digitalRead(break_up)==LOW)) {
+				if (digitalRead(break_up) == LOW)
+					st = Breakes;
+				else
+					st = STOP;
 				digitalWrite(output_down, LOW);
 				digitalWrite(output_up, LOW);
 				analogWrite(PWM_out_up, 0);
 				analogWrite(PWM_out_down, 0);
 				break;
 			}
-			digitalWrite(output_down, LOW);
+			//digitalWrite(output_down, LOW);
 			int temp = MainReg.RegState(st);
-			digitalWrite(output_up, HIGH);
+			
 			analogWrite(PWM_out_up, 200);		//// величина ШИМ на этапе разгона
 			startTime++;
 			if (startTime>4) {
@@ -184,21 +198,31 @@ void loop() {
 			break;
 		}
 		case StartRWD: {
-			if (digitalRead(input_down)==LOW /*|| (digitalRead(break_down))*/) {
-				st = STOP;
+			if (digitalRead(input_down)==LOW || (digitalRead(break_down)== LOW)) {
+				if (digitalRead(break_down) == LOW)
+					st = Breakes;
+				else
+					st = STOP;
 				digitalWrite(output_down, LOW);
 				digitalWrite(output_up, LOW);
 				analogWrite(PWM_out_up, 0);
 				analogWrite(PWM_out_down, 0);
 				break;
 			}
-			digitalWrite(output_down, HIGH);
-			digitalWrite(output_up, LOW);
+			//digitalWrite(output_down, HIGH);
+			//digitalWrite(output_up, LOW);
 			int temp = MainReg.RegState(st);
 			analogWrite(PWM_out_down, 200);   /////// величина ШИМ на этапе разгона
+			//attemp++;
 			startTime++;
 			if (startTime>4) {				/////// Значение нужно умножить на дискретность системы 5мс
 				st = RWD;
+			}
+			break;
+		}
+		case Breakes: {
+			if (digitalRead(input_down) == LOW && digitalRead(input_up) == LOW) {
+				st = STOP;
 			}
 			break;
 		}
@@ -222,11 +246,10 @@ void loop() {
 				startAttempTime = millis();
 				attemp++;
 			}else{
-				if (attemp > 6) {
-					//st = Error;
+				if (attemp > 20) {
+					st = Error;
 					pinMode(alarm, OUTPUT);
-				}
-				if (millis() - startAttempTime > 500) {
+				}else if (millis() - startAttempTime > 500) {
 					attemp = 0;
 				}
 			}

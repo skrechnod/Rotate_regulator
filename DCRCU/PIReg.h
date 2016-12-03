@@ -11,6 +11,7 @@ enum state {
 	RWD,
 	StartFWD,
 	StartRWD,
+	Breakes,
 	Error
 };
 
