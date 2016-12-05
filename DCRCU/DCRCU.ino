@@ -12,6 +12,7 @@
   modified 8 May 2014
   by Scott Fitzgerald
  */
+#include "Filtred_digital_read.h"
 #include "PIReg.h"
 
 PIReg MainReg;
@@ -47,15 +48,16 @@ void Timer_ISR() {
 */
 
 
-int input_up = 9;
-int input_down = 8;
+Filtred_digital_read * input_up;
+Filtred_digital_read * input_down;
 int output_up = 4;
 int output_down = 12;
 int PWM_out_up = 3;
 int PWM_out_down = 5;
-int break_down = 6;
-int break_up = 7;
-int alarm = 10;
+Filtred_digital_read * break_down;
+Filtred_digital_read * break_up ;
+Filtred_digital_read * alarm_in ;
+int alarm_out = 11;
 unsigned long previousMillis = 0;       
 const long interval = 10;
 state st = STOP;
@@ -63,21 +65,24 @@ int startTime = 0;
 int attemp = 0;
 unsigned long  startAttempTime = 0;
 unsigned long  endAttempTime = 0;
+int InitTime = 0;
 // the setup function runs once when you press reset or power the board
 void setup() {
   // initialize digital pin 13 as an output.
-	pinMode(input_down, INPUT_PULLUP);
-	pinMode(input_up, INPUT_PULLUP);
+	input_down = new Filtred_digital_read(8);
+	input_up = new Filtred_digital_read (9);
 	pinMode(output_down, OUTPUT);
 	pinMode(output_up, OUTPUT);
 	pinMode(PWM_out_up, OUTPUT);
 	pinMode(PWM_out_down, OUTPUT);
-	pinMode(break_down, INPUT_PULLUP);
-	pinMode(break_up, INPUT_PULLUP);
+	break_down = new Filtred_digital_read (6);
+	break_up = new Filtred_digital_read (7);
 	pinMode(2, INPUT_PULLUP);
-	pinMode(alarm, INPUT_PULLUP);
+	alarm_in = new Filtred_digital_read (10);
+	pinMode(alarm_out, OUTPUT);
 	attachInterrupt(digitalPinToInterrupt(2), Timer_ISR, RISING);
 	Serial.begin(256000);
+	digitalWrite(alarm_out, HIGH);
 }
 
 // the loop function runs over and over again forever
@@ -86,11 +91,22 @@ void loop() {
 	unsigned long currentMillis = millis();
 
 	if (currentMillis - previousMillis >= interval) {
-		// save the last time you blinked the LED
+
 		previousMillis = currentMillis;
 
 		switch (st)
 		{
+		case INIT: {
+			InitTime++;
+			if (InitTime > 50)
+				st = STOP;
+			input_down->read();
+			input_up->read();
+			break_down->read();
+			break_up->read();
+			alarm_in->read();
+			break;
+		}
 		case STOP: {
 			startTime = 0;
 			Time = 32000;
@@ -101,13 +117,13 @@ void loop() {
 			analogWrite(PWM_out_up, MainReg.RegState(st));
 			analogWrite(PWM_out_down, MainReg.RegState(st));
 			attemp = 0;
-			if (digitalRead(input_down) && (digitalRead(break_down)))
+			if (input_down->read() && break_down->read())
 			{
 				st = StartRWD;
 				digitalWrite(output_down, HIGH);
 				attemp = 0;
 			}
-			else if (digitalRead(input_up) && (digitalRead(break_up))) {
+			else if (input_up->read() && break_up->read()) {
 				st = StartFWD;
 				digitalWrite(output_up, HIGH);
 				attemp = 0;
@@ -115,8 +131,8 @@ void loop() {
 			break;
 		}
 		case FWD: {
-			if (digitalRead(input_up)==LOW || (digitalRead(break_up) == LOW)) {
-				if (digitalRead(break_up) == LOW)
+			if (input_up->read()==LOW || (break_up->read() == LOW)) {
+				if (break_up->read() == LOW)
 					st = Breakes;
 				else
 					st = STOP;
@@ -143,8 +159,8 @@ void loop() {
 			break;
 		}
 		case RWD: {
-			if (digitalRead(input_down)==LOW || (digitalRead(break_down)==LOW)) {
-				if (digitalRead(break_down) == LOW)
+			if (input_down->read() ==LOW || break_down->read()==LOW) {
+				if (break_down->read() == LOW)
 					st = Breakes;
 				else
 					st = STOP;
@@ -176,8 +192,8 @@ void loop() {
 				  //
 				  ///////////////////////////////////////////
 		case StartFWD:{
-			if (digitalRead(input_up)==LOW || (digitalRead(break_up)==LOW)) {
-				if (digitalRead(break_up) == LOW)
+			if (input_up->read()==LOW || break_up->read() ==LOW) {
+				if (break_up->read() == LOW)
 					st = Breakes;
 				else
 					st = STOP;
@@ -198,8 +214,8 @@ void loop() {
 			break;
 		}
 		case StartRWD: {
-			if (digitalRead(input_down)==LOW || (digitalRead(break_down)== LOW)) {
-				if (digitalRead(break_down) == LOW)
+			if (input_down->read() ==LOW || break_down->read()== LOW) {
+				if (break_down->read() == LOW)
 					st = Breakes;
 				else
 					st = STOP;
@@ -221,7 +237,7 @@ void loop() {
 			break;
 		}
 		case Breakes: {
-			if (digitalRead(input_down) == LOW && digitalRead(input_up) == LOW) {
+			if (input_down->read() == LOW && input_up->read() == LOW) {
 				st = STOP;
 			}
 			break;
@@ -232,14 +248,14 @@ void loop() {
 			digitalWrite(output_up, LOW);
 			analogWrite(PWM_out_up, MainReg.RegState(st));
 			analogWrite(PWM_out_down, MainReg.RegState(st));
-			digitalWrite(alarm, LOW);
+			digitalWrite(alarm_out, LOW);
 			break;
 		}
 		default:
 			break;
 		}
-		if (digitalRead(alarm) == LOW) {
-			//st = Error;
+		if (alarm_in->read() == LOW && st != INIT) {
+			st = Error;
 		}
 		if (attemp > 0) {
 			if (attemp == 1) {
@@ -248,7 +264,7 @@ void loop() {
 			}else{
 				if (attemp > 20) {
 					st = Error;
-					pinMode(alarm, OUTPUT);
+					//pinMode(alarm, OUTPUT);
 				}else if (millis() - startAttempTime > 500) {
 					attemp = 0;
 				}
