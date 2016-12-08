@@ -60,7 +60,7 @@ Filtred_digital_read * alarm_in ;
 int alarm_out = 11;
 unsigned long previousMillis = 0;       
 const long interval = 10;
-state st = STOP;
+state st = INIT;
 int startTime = 0;
 int attemp = 0;
 unsigned long  startAttempTime = 0;
@@ -98,7 +98,7 @@ void loop() {
 		{
 		case INIT: {
 			InitTime++;
-			if (InitTime > 50)
+			if (InitTime > 200)
 				st = STOP;
 			input_down->read();
 			input_up->read();
@@ -262,7 +262,7 @@ void loop() {
 				startAttempTime = millis();
 				attemp++;
 			}else{
-				if (attemp > 20) {
+				if (attemp > 10) {
 					st = Error;
 					//pinMode(alarm, OUTPUT);
 				}else if (millis() - startAttempTime > 500) {

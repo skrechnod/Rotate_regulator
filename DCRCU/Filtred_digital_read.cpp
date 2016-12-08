@@ -18,7 +18,7 @@ Filtred_digital_read::~Filtred_digital_read()
 
 int Filtred_digital_read::read()
 {
-	if (digitalRead(pin) == LOW) {
+	if (digitalRead(pin) == HIGH) {
 		if (currSample < 5)
 			currSample++;
 	}
