@@ -66,6 +66,7 @@ int attemp = 0;
 unsigned long  startAttempTime = 0;
 unsigned long  endAttempTime = 0;
 int InitTime = 0;
+int OverloadCpount = 0;
 // the setup function runs once when you press reset or power the board
 void setup() {
   // initialize digital pin 13 as an output.
@@ -150,7 +151,18 @@ void loop() {
 			meas_flag = false;
 			//digitalWrite(output_down, LOW);
 			int temp = MainReg.RegState(st);
-			//digitalWrite(output_up, HIGH);
+			if (temp > 253) {
+				OverloadCpount++;
+				if (OverloadCpount > 200) {
+					st = Error;
+					break;
+				}
+			}
+			else
+			{
+				if (OverloadCpount > 0)
+					OverloadCpount--;
+			}
 			analogWrite(PWM_out_up, temp);
 			startTime = 0;
 			//Serial.print("PWm ");
@@ -180,6 +192,18 @@ void loop() {
 			//digitalWrite(output_down, HIGH);
 			//digitalWrite(output_up, LOW);
 			int temp = MainReg.RegState(st);
+			if (temp > 253) {
+				OverloadCpount++;
+				if (OverloadCpount > 200) {
+					st = Error;
+					break;
+				}
+			}
+			else
+			{
+				if (OverloadCpount > 0)
+					OverloadCpount--;
+			}
 			analogWrite(PWM_out_down, temp);
 			//Serial.print("PWm ");
 			//Serial.println(temp);
